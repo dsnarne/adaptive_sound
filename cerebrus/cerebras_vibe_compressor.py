@@ -18,9 +18,8 @@ except ImportError:
     print("Warning: cerebras package not installed. Install with: pip install cerebras-cloud-sdk")
     Cerebras = None
 
-from .schema_validator import VibeSchemaValidator, ValidationResult
-from .text_preprocessor import TextPreprocessor
-
+from cerebrus.schema_validator import VibeSchemaValidator, ValidationResult
+from cerebrus.text_preprocessor import TextPreprocessor
 
 @dataclass
 class CerebrasCompressionResult:
@@ -98,21 +97,21 @@ CONSTRAINTS:
 
 OUTPUT SCHEMA (Suno API format):
 {
-  "topics": "<natural language description of the music, e.g. 'An upbeat instrumental track for coding'>",
+  "topic": "<natural language description of the music, e.g. 'An upbeat instrumental track for coding'>",
   "tags": "<comma-separated tags, e.g. 'instrumental, electronic, upbeat, energetic'>"
 }
 
 RULES:
-- topics = natural description of the desired instrumental music (1-2 sentences max)
+- topic = natural description of the desired instrumental music (1-2 sentences max)
 - tags = comma-separated descriptive tags including: instrumental style, mood, energy, tempo, instruments
 - Always include "instrumental" as the first tag
 - Focus on background music suitable for reading/browsing
 - Match the energy and mood to the content type
 
 Examples:
-Science article → "topics": "A calm instrumental track for reading scientific content", "tags": "instrumental, ambient, contemplative, piano, strings"
-Romance story → "topics": "A gentle romantic instrumental piece", "tags": "instrumental, romantic, soft, piano, strings"
-Business news → "topics": "A professional instrumental background track", "tags": "instrumental, professional, moderate, piano, subtle"
+Science article → "topic": "A calm instrumental track for reading scientific content", "tags": "instrumental, ambient, contemplative, piano, strings"
+Romance story → "topic": "A gentle romantic instrumental piece", "tags": "instrumental, romantic, soft, piano, strings"
+Business news → "topic": "A professional instrumental background track", "tags": "instrumental, professional, moderate, piano, subtle"
 
 Output strictly as JSON, no additional commentary."""
     
@@ -360,7 +359,7 @@ Task: Summarize this into a strict JSON object following the schema. Output JSON
         processing_times = [r.processing_time for r in successful if r.processing_time]
         
         # Topic distribution
-        topics = [r.data['topic'] for r in successful if r.data]
+        topics = [r.data['topic'] for r in successful if r.data and 'topic' in r.data]
         topic_counts = {}
         for topic in topics:
             topic_counts[topic] = topic_counts.get(topic, 0) + 1
@@ -419,8 +418,7 @@ if __name__ == "__main__":
             if result.success:
                 print(f"Success: {result.success}")
                 print(f"Topic: {result.data['topic']}")
-                print(f"Mood: {result.data['mood']}")
-                print(f"Energy: {result.data['energy']}")
+                print(f"Tags: {result.data['tags']}")
                 print(f"JSON: {result.json_output}")
                 print(f"Output tokens: {result.token_count}")
                 print(f"Total tokens used: {result.tokens_used}")
@@ -429,6 +427,7 @@ if __name__ == "__main__":
                     print(f"Valid: {result.validation.is_valid}")
             else:
                 print(f"Error: {result.error_message}")
+                print(f"Raw response: {result.model_response}")
         
         # Test batch processing
         print(f"\n{'='*60}")

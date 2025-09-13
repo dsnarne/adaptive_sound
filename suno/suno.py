@@ -54,7 +54,11 @@ class SunoAPI:
             data["make_instrumental"] = make_instrumental
             
         try:
+            api_start = time.time()
+            print(f"[0.0s] 🚀 Sending generation request to Suno API...")
             response = requests.post(url, headers=self.headers, json=data)
+            api_time = time.time() - api_start
+            print(f"[{api_time:.1f}s] ✅ API request completed in {api_time:.3f}s")
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
@@ -99,77 +103,126 @@ class SunoAPI:
             Clip object when streaming or complete
         """
         start_time = time.time()
+        poll_count = 0
+        
+        print(f"[{0:.1f}s] 📊 Starting polling for clip {clip_id}")
         
         while time.time() - start_time < max_wait:
+            poll_count += 1
+            elapsed = time.time() - start_time
+            
+            print(f"[{elapsed:.1f}s] 🔍 Poll #{poll_count}: Checking status...")
+            
+            poll_start = time.time()
             clip = self._get_clip_status(clip_id)
+            poll_time = time.time() - poll_start
+            
             if not clip:
                 raise Exception(f"Clip {clip_id} not found")
                 
             status = clip.get("status")
+            elapsed = time.time() - start_time
             
-            print(f"Status: {status}")
+            print(f"[{elapsed:.1f}s] 📊 Poll #{poll_count}: Status = '{status}' (API call: {poll_time:.3f}s)")
             
             if status in ["streaming", "complete"]:
+                print(f"[{elapsed:.1f}s] ✅ Ready! Status changed to '{status}' after {poll_count} polls")
                 return clip
             elif status == "error":
                 error_msg = clip.get("metadata", {}).get("error_message", "Unknown error")
                 raise Exception(f"Generation failed: {error_msg}")
             
             # Wait before next poll
+            print(f"[{elapsed:.1f}s] ⏳ Waiting 5 seconds before next poll...")
             time.sleep(5)
         
         raise TimeoutError(f"Clip {clip_id} did not become ready within {max_wait} seconds")
     
-    def download_and_play_audio(self, audio_url: str) -> tuple:
+    def _check_audio_player_availability(self) -> str:
         """
-        Download audio from URL and play it using afplay.
+        Check which audio player is available on the system.
+        
+        Returns:
+            Name of available audio player ('mpv', 'afplay', or None)
+        """
+        try:
+            subprocess.run(["mpv", "--version"], capture_output=True, check=True)
+            return "mpv"
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            try:
+                subprocess.run(["afplay", "--help"], capture_output=True, check=True)
+                return "afplay"
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                return None
+    
+    def _validate_audio_url(self, audio_url: str) -> bool:
+        """
+        Validate that the audio URL is accessible.
+        
+        Args:
+            audio_url: URL to validate
+            
+        Returns:
+            True if URL is accessible, False otherwise
+        """
+        try:
+            response = requests.head(audio_url, timeout=10)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    def stream_and_play_audio(self, audio_url: str, start_time: float) -> tuple:
+        """
+        Stream audio directly from URL using mpv (preferred) or afplay fallback.
         
         Args:
             audio_url: URL to the audio file
+            start_time: Start time for elapsed timing
             
         Returns:
-            Tuple of (audio_file_path, process)
+            Tuple of (audio_url, process)
         """
+        elapsed = time.time() - start_time
+        print(f"[{elapsed:.1f}s] 🎵 Starting direct streaming from: {audio_url}")
+        
+        # Check which audio player is available
+        player = self._check_audio_player_availability()
+        if not player:
+            raise Exception("No compatible audio player found. Please install mpv (brew install mpv) or ensure afplay is available.")
+        
+        # Validate URL accessibility
+        print(f"[{elapsed:.1f}s] 🔍 Validating audio URL...")
+        if not self._validate_audio_url(audio_url):
+            raise Exception("Audio URL is not accessible or has expired")
+        
         try:
-            print(f"Downloading audio from: {audio_url}")
+            playback_start = time.time()
             
-            # Download audio to temporary file
-            response = requests.get(audio_url, stream=True)
-            response.raise_for_status()
+            if player == "mpv":
+                # Use mpv with optimized streaming settings
+                process = subprocess.Popen([
+                    "mpv", 
+                    audio_url,
+                    "--no-video",           # Audio only
+                    "--really-quiet",       # Suppress output
+                    "--cache=yes",          # Enable caching
+                    "--demuxer-max-bytes=1M"  # Limit buffer size for faster startup
+                ])
+                print(f"[{elapsed:.1f}s] 🎶 Using mpv for audio streaming")
+            else:
+                # Fallback to afplay
+                process = subprocess.Popen(["afplay", audio_url])
+                print(f"[{elapsed:.1f}s] 🎶 Using afplay for audio streaming")
             
-            # Get file size if available
-            total_size = int(response.headers.get('content-length', 0))
-            if total_size > 0:
-                print(f"File size: {total_size / (1024*1024):.1f} MB")
+            playback_startup = time.time() - playback_start
+            elapsed = time.time() - start_time
+            print(f"[{elapsed:.1f}s] 🎶 Audio streaming started! (startup: {playback_startup:.3f}s)")
             
-            # Create temporary file
-            with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as temp_file:
-                downloaded = 0
-                print("⬇️ Downloading... ", end="", flush=True)
-                
-                for chunk in response.iter_content(chunk_size=8192):
-                    temp_file.write(chunk)
-                    downloaded += len(chunk)
-                    
-                    # Show progress for larger files
-                    if total_size > 0 and downloaded % (1024*1024) == 0:  # Every MB
-                        progress = (downloaded / total_size) * 100
-                        print(f"{progress:.0f}% ", end="", flush=True)
-                
-                temp_path = temp_file.name
-                print("Complete!")
-            
-            print(f"Audio saved to: {temp_path}")
-            print("Starting playback with afplay...")
-            
-            # Play audio using afplay and keep reference to process
-            process = subprocess.Popen(["afplay", temp_path])
-            print("Audio is now playing!")
-            
-            return temp_path, process
+            return audio_url, process
             
         except Exception as e:
-            print(f"Error with audio: {e}")
+            elapsed = time.time() - start_time
+            print(f"[{elapsed:.1f}s] ❌ Error with streaming: {e}")
             raise
     
     def generate_and_play(self, topic: str, tags: str, make_instrumental: bool = False) -> Dict:
@@ -184,6 +237,8 @@ class SunoAPI:
         Returns:
             Clip info with metadata
         """
+        overall_start = time.time()
+        
         print(f"Topic: {topic}")
         print(f"Tags: {tags}")
         print(f"Instrumental: {make_instrumental}")
@@ -196,8 +251,11 @@ class SunoAPI:
         # Wait for streaming to be available
         ready_clip = self.wait_for_streaming(clip_info["id"])
         
-        # Download and play
-        audio_file, process = self.download_and_play_audio(ready_clip["audio_url"])
+        # Stream and play
+        audio_file, process = self.stream_and_play_audio(ready_clip["audio_url"], overall_start)
+        
+        total_time = time.time() - overall_start
+        print(f"🎉 Total pipeline time: {total_time:.1f}s")
         
         return ready_clip, process
     
