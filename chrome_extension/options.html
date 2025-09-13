@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>Adaptive Agent Settings</title>
+	<style>
+		body { font-family: -apple-system, system-ui, Segoe UI, Roboto, sans-serif; margin: 20px; max-width: 720px; }
+		label { display: block; margin: 12px 0 6px; }
+		input[type=text] { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; }
+		button { padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; background: white; cursor: pointer; }
+		button:hover { background: #f3f4f6; }
+		.small { color: #666; }
+	</style>
+</head>
+<body>
+	<h2>Adaptive Agent Settings</h2>
+	<label>Classifier API endpoint</label>
+	<input type="text" id="api" placeholder="https://.../classify_context" />
+	<div style="margin-top: 12px;">
+		<button id="save">Save</button>
+		<span class="small" id="status"></span>
+	</div>
+	<script>
+		(async function init(){
+			const { apiEndpoint } = await chrome.storage.sync.get(["apiEndpoint"]);
+			if (apiEndpoint) document.getElementById('api').value = apiEndpoint;
+		})();
+		document.getElementById('save').addEventListener('click', async () => {
+			const api = document.getElementById('api').value.trim();
+			await chrome.storage.sync.set({ apiEndpoint: api });
+			document.getElementById('status').textContent = 'Saved';
+			setTimeout(()=> document.getElementById('status').textContent = '', 1200);
+		});
+	</script>
+</body>
+</html>

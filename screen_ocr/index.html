@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Live Screen OCR</title>
+	<style>
+		body { font-family: -apple-system, system-ui, Segoe UI, Roboto, sans-serif; margin: 16px; }
+		#wrap { max-width: 960px; margin: 0 auto; }
+		pre { white-space: pre-wrap; word-wrap: break-word; min-height: 220px; background: #f6f7f9; padding: 12px; border-radius: 8px; }
+		.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+		input, button, select { padding: 8px; border-radius: 6px; border: 1px solid #ccc; }
+		label { font-size: 12px; color: #555; }
+		#video { max-width: 100%; border: 1px solid #ddd; border-radius: 8px; }
+		.small { color: #666; font-size: 12px; }
+	</style>
+</head>
+<body>
+	<div id="wrap">
+		<h2>Live Screen OCR (no extension)</h2>
+		<div class="row">
+			<button id="start">Start Capture</button>
+			<button id="stop" disabled>Stop</button>
+			<label>Lang <select id="lang">
+				<option value="eng" selected>eng</option>
+				<option value="eng+spa">eng+spa</option>
+			</select></label>
+			<label>Interval (ms) <input id="interval" type="number" value="1200" min="300" step="100" /></label>
+			<label>Endpoint <input id="endpoint" type="text" placeholder="https://your-endpoint" /></label>
+		</div>
+		<video id="video" autoplay muted playsinline></video>
+		<h3>Recognized text</h3>
+		<pre id="text">(waiting)</pre>
+		<div class="small" id="status"></div>
+	</div>
+	<script src="https://unpkg.com/tesseract.js@5.0.5/dist/tesseract.min.js"></script>
+	<script src="app.js"></script>
+</body>
+</html>
