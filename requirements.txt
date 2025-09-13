@@ -1,0 +1,18 @@
+# Core dependencies for the Vibe Compressor system
+# Basic text processing and data structures
+dataclasses-json>=0.5.7
+typing-extensions>=4.0.0
+
+# Cerebras Cloud SDK for AI-powered compression
+cerebras-cloud-sdk>=1.0.0
+
+# Development and testing dependencies (optional)
+# Uncomment for development work
+# pytest>=7.0.0
+# pytest-cov>=4.0.0
+# black>=22.0.0
+# flake8>=5.0.0
+# mypy>=1.0.0
+
+# Note: The core system has minimal dependencies by design
+# Most functionality uses only Python standard library modules
