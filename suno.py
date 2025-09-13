@@ -3,6 +3,7 @@ import time
 import os
 import tempfile
 import subprocess
+import json
 from typing import Dict
 from dotenv import load_dotenv
 
@@ -202,40 +203,86 @@ class SunoAPI:
     
 
 
+def load_json_config(file_path: str) -> Dict:
+    """Load topics and tags from JSON file."""
+    try:
+        with open(file_path, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"Error: JSON file '{file_path}' not found")
+        return None
+    except json.JSONDecodeError as e:
+        print(f"Error: Invalid JSON format - {e}")
+        return None
+
+def generate_default_tags(topic: str) -> str:
+    """Generate default tags based on topic keywords."""
+    topic_lower = topic.lower()
+    if any(word in topic_lower for word in ["workout", "exercise", "energy", "upbeat"]):
+        return "electronic, energetic, upbeat"
+    elif any(word in topic_lower for word in ["relax", "calm", "peaceful", "ambient"]):
+        return "ambient, peaceful, relaxing"
+    elif any(word in topic_lower for word in ["focus", "concentration", "study"]):
+        return "instrumental, lo-fi, focus"
+    elif any(word in topic_lower for word in ["rock", "metal", "heavy"]):
+        return "rock, electric guitar, energetic"
+    elif any(word in topic_lower for word in ["jazz", "smooth", "sophisticated"]):
+        return "jazz, smooth, sophisticated"
+    else:
+        return "instrumental, ambient, versatile"
+
 def main():
-    """Generate and play music with command line arguments."""
+    """Generate and play music with command line arguments or JSON file."""
     import sys
     
     # Parse command line arguments
     if len(sys.argv) < 2:
-        print("Usage: python suno.py <topic> [tags] [--instrumental]")
-        print("Example: python suno.py 'Relaxing ambient music'")
-        print("Example: python suno.py 'Relaxing ambient music' 'ambient, lo-fi, peaceful'")
-        print("Example: python suno.py 'Upbeat workout music' 'electronic, energetic' --instrumental")
+        print("Usage:")
+        print("  python suno.py <topic> [tags] [--instrumental]")
+        print("  python suno.py --json <json_file> [--instrumental]")
+        print()
+        print("Examples:")
+        print("  python suno.py 'Relaxing ambient music'")
+        print("  python suno.py 'Relaxing ambient music' 'ambient, lo-fi, peaceful'")
+        print("  python suno.py --json music_config.json")
+        print("  python suno.py --json music_config.json --instrumental")
         return
     
-    topic = sys.argv[1]
-    
-    # Check if second argument is tags or --instrumental
-    if len(sys.argv) >= 3 and not sys.argv[2].startswith('--'):
-        tags = sys.argv[2]
-    else:
-        # Default tags based on topic keywords
-        topic_lower = topic.lower()
-        if any(word in topic_lower for word in ["workout", "exercise", "energy", "upbeat"]):
-            tags = "electronic, energetic, upbeat"
-        elif any(word in topic_lower for word in ["relax", "calm", "peaceful", "ambient"]):
-            tags = "ambient, peaceful, relaxing"
-        elif any(word in topic_lower for word in ["focus", "concentration", "study"]):
-            tags = "instrumental, lo-fi, focus"
-        elif any(word in topic_lower for word in ["rock", "metal", "heavy"]):
-            tags = "rock, electric guitar, energetic"
-        elif any(word in topic_lower for word in ["jazz", "smooth", "sophisticated"]):
-            tags = "jazz, smooth, sophisticated"
-        else:
-            tags = "instrumental, ambient, versatile"
-    
     make_instrumental = "--instrumental" in sys.argv
+    
+    # Check if using JSON file input
+    if sys.argv[1] == "--json":
+        if len(sys.argv) < 3:
+            print("Error: JSON file path required when using --json")
+            return
+        
+        json_file = sys.argv[2]
+        config = load_json_config(json_file)
+        if not config:
+            return
+        
+        # Extract topic and tags from JSON
+        topic = config.get("topic", "")
+        tags = config.get("tags", "")
+        
+        if not topic:
+            print("Error: 'topic' field is required in JSON file")
+            return
+        
+        # Use default tags if empty or not provided
+        if not tags:
+            tags = generate_default_tags(topic)
+            print(f"Using default tags: {tags}")
+    
+    else:
+        # Original command line parsing
+        topic = sys.argv[1]
+        
+        # Check if second argument is tags or --instrumental
+        if len(sys.argv) >= 3 and not sys.argv[2].startswith('--'):
+            tags = sys.argv[2]
+        else:
+            tags = generate_default_tags(topic)
     
     # Get API token from environment variable
     api_token = os.getenv("SUNO_API_TOKEN")
