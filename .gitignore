@@ -1,0 +1,44 @@
+# Node/Next
+node_modules/
+.next/
+out/
+dist/
+.cache/
+.turbo/
+.vercel/
+
+# Env/config
+.env
+.env.*.local
+
+# Logs
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Explicitly ignore Next.js SWC native binaries
+node_modules/@next/swc-*/**
+node_modules/@next/swc-*/**/*.node
+node_modules/@swc/core-*
+node_modules/@swc/core-*/**
+
+# Common build artifacts
+build/
+tmp/
+temp/
+*.log
+*.tsbuildinfo
+/.eslintcache
