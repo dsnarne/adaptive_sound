@@ -33,33 +33,33 @@ export const colorSchemes: Record<string, ColorScheme> = {
   
   green: {
     name: 'Sage Green',
-    primary: 'rgb(132, 148, 132)', // sage green
-    secondary: 'rgb(159, 175, 159)', // lighter sage
-    accent: 'rgb(186, 202, 186)', // very light sage
-    background: 'rgb(247, 249, 247)', // sage-tinted white
+    primary: 'rgb(101, 128, 101)', // darker sage green for better contrast
+    secondary: 'rgb(132, 148, 132)', // medium sage
+    accent: 'rgb(159, 175, 159)', // light sage
+    background: 'rgb(245, 248, 245)', // sage-tinted white
     surface: 'rgb(255, 255, 255)',
     text: {
-      primary: 'rgb(45, 55, 45)', // dark sage
-      secondary: 'rgb(75, 85, 75)', // medium sage
-      muted: 'rgb(105, 115, 105)' // muted sage
+      primary: 'rgb(25, 35, 25)', // much darker sage for better contrast
+      secondary: 'rgb(45, 60, 45)', // dark sage
+      muted: 'rgb(75, 90, 75)' // medium sage
     },
-    border: 'rgb(220, 230, 220)', // light sage border
-    hover: 'rgb(105, 121, 105)' // darker sage
+    border: 'rgb(200, 215, 200)', // sage border
+    hover: 'rgb(85, 110, 85)' // darker sage hover
   },
 
   orange: {
     name: 'Muted Orange',
-    primary: 'rgb(180, 130, 90)', // muted orange
-    secondary: 'rgb(160, 115, 80)', // darker muted orange
-    accent: 'rgb(200, 150, 110)', // lighter muted orange
-    background: 'rgb(252, 249, 246)', // warm off-white
+    primary: 'rgb(160, 110, 70)', // darker muted orange for better contrast
+    secondary: 'rgb(140, 95, 60)', // even darker orange
+    accent: 'rgb(180, 130, 90)', // medium orange
+    background: 'rgb(250, 246, 242)', // warm off-white
     surface: 'rgb(255, 255, 255)',
     text: {
-      primary: 'rgb(80, 60, 40)', // dark brown
-      secondary: 'rgb(110, 85, 65)', // medium brown
-      muted: 'rgb(140, 110, 90)' // light brown
+      primary: 'rgb(60, 40, 25)', // much darker brown for better contrast
+      secondary: 'rgb(90, 65, 45)', // dark brown
+      muted: 'rgb(120, 90, 70)' // medium brown
     },
-    border: 'rgb(235, 225, 215)', // warm beige border
-    hover: 'rgb(150, 110, 75)' // darker muted orange
+    border: 'rgb(220, 205, 190)', // warm beige border
+    hover: 'rgb(130, 90, 55)' // darker orange hover
   }
 };

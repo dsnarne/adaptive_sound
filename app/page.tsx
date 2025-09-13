@@ -15,6 +15,7 @@ export default function Home() {
   // Music state
   const [currentSong, setCurrentSong] = useState('Ambient Webpage Symphony')
   const [mood, setMood] = useState('thoughtful and informative')
+  const [readingContent, setReadingContent] = useState('This webpage contains content about adaptive sound generation. The system analyzes text patterns, emotional undertones, and thematic elements to create matching musical compositions that enhance the reading experience.')
 
   const handleProfileClick = () => {
     console.log('Profile clicked')
@@ -27,6 +28,7 @@ export default function Home() {
         <MainContent 
           currentSong={currentSong}
           mood={mood}
+          readingContent={readingContent}
         />
         
         <Sidebar

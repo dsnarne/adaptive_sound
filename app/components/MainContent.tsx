@@ -1,9 +1,10 @@
 interface MainContentProps {
   currentSong: string;
   mood: string;
+  readingContent?: string;
 }
 
-export default function MainContent({ currentSong, mood }: MainContentProps) {
+export default function MainContent({ currentSong, mood, readingContent }: MainContentProps) {
   return (
     <div 
       className="flex-1 p-8"
@@ -97,6 +98,28 @@ export default function MainContent({ currentSong, mood }: MainContentProps) {
                   {currentSong ? 'Now playing...' : 'Ready to generate music'}
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* What we're reading section */}
+          <div 
+            className="rounded-lg shadow-sm border p-6"
+            style={{ 
+              backgroundColor: 'var(--color-surface)',
+              borderColor: 'var(--color-border)'
+            }}
+          >
+            <h2 
+              className="text-lg font-semibold mb-4"
+              style={{ color: 'var(--color-text-secondary)' }}
+            >
+              What we're reading:
+            </h2>
+            <div 
+              className="text-sm leading-relaxed"
+              style={{ color: 'var(--color-text-primary)' }}
+            >
+              {readingContent || 'Analyzing webpage content to generate personalized music based on the mood and themes detected in the text...'}
             </div>
           </div>
         </div>

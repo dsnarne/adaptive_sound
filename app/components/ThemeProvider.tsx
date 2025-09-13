@@ -13,7 +13,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [themeName, setThemeName] = useState('blue');
+  const [themeName, setThemeName] = useState('green');
   const currentTheme = colorSchemes[themeName];
   const availableThemes = Object.keys(colorSchemes);
 

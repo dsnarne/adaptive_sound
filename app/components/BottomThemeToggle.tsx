@@ -17,7 +17,7 @@ export default function BottomThemeToggle() {
 
   const getThemeDisplayName = (theme: string) => {
     switch (theme) {
-      case 'blue': return 'Dark Mode';
+      case 'blue': return 'Dark Blue';
       case 'green': return 'Sage Green';
       case 'orange': return 'Muted Orange';
       default: return theme;
