@@ -9,8 +9,8 @@ interface SidebarProps {
   onFadeChange: (enabled: boolean) => void;
   onAutoSwitchChange: (enabled: boolean) => void;
   onProfileClick?: () => void;
-  showOCR?: boolean;
-  onToggleOCR?: () => void;
+  isCapturing?: boolean;
+  onCaptureStateChange?: () => void;
 }
 
 export default function Sidebar({
@@ -21,8 +21,8 @@ export default function Sidebar({
   onFadeChange,
   onAutoSwitchChange,
   onProfileClick,
-  showOCR,
-  onToggleOCR
+  isCapturing,
+  onCaptureStateChange
 }: SidebarProps) {
   return (
     <div 
@@ -74,21 +74,21 @@ export default function Sidebar({
         </div>
       </div>
       
-      {/* Live Capture Section */}
+      {/* Screen Capture Section */}
       <div className="mt-6">
         <button
-          onClick={onToggleOCR}
+          onClick={() => onCaptureStateChange?.()}
           className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
-            showOCR 
+            isCapturing 
               ? 'bg-red-500 hover:bg-red-600 text-white' 
               : 'text-white'
           }`}
           style={{ 
-            backgroundColor: showOCR ? undefined : 'var(--color-primary)',
-            color: showOCR ? undefined : 'white'
+            backgroundColor: isCapturing ? undefined : 'var(--color-primary)',
+            color: isCapturing ? undefined : 'white'
           }}
         >
-          {showOCR ? 'Close Live Capture' : 'Start Live Capture'}
+          {isCapturing ? 'Stop Screen Capture' : 'Start Screen Capture'}
         </button>
         <p className="text-xs mt-2 text-center" style={{ color: 'var(--color-text-muted)' }}>
           Capture screen content to generate adaptive music

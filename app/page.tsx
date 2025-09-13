@@ -17,7 +17,16 @@ export default function Home() {
   const [currentSong, setCurrentSong] = useState('')
   const [mood, setMood] = useState('')
   const [readingContent, setReadingContent] = useState('')
-  const [showOCR, setShowOCR] = useState(false)
+  const [isCapturing, setIsCapturing] = useState(false)
+  const [musicGeneration, setMusicGeneration] = useState<{
+    status: 'idle' | 'analyzing' | 'generating' | 'ready' | 'error'
+    topics?: string
+    tags?: string
+    clipId?: string
+    audioUrl?: string
+    error?: string
+  }>({ status: 'idle' })
+  const [captureStatus, setCaptureStatus] = useState<string>('')
   
   // Handle music generation updates from OCR component
   const handleMusicUpdate = (data: {
@@ -25,10 +34,29 @@ export default function Home() {
     tags?: string
     audioUrl?: string
     recognizedText?: string
+    musicGeneration?: any
+    status?: string
   }) => {
-    if (data.topics) setCurrentSong(data.topics)
-    if (data.tags) setMood(data.tags)
-    if (data.recognizedText) setReadingContent(data.recognizedText)
+    if (data.topics !== undefined) setCurrentSong(data.topics)
+    if (data.tags !== undefined) setMood(data.tags)
+    if (data.recognizedText !== undefined) setReadingContent(data.recognizedText)
+    if (data.musicGeneration) {
+      setMusicGeneration(data.musicGeneration)
+      // Update current song and mood from music generation data
+      if (data.musicGeneration.topics) setMood(data.musicGeneration.topics)
+      if (data.musicGeneration.tags) setCurrentSong(data.musicGeneration.tags)
+    }
+    if (data.status) setCaptureStatus(data.status)
+  }
+
+  const handleCaptureStateChange = (capturing: boolean) => {
+    console.log('handleCaptureStateChange called with:', capturing)
+    setIsCapturing(capturing)
+  }
+
+  const toggleCapture = () => {
+    console.log('toggleCapture called, current isCapturing:', isCapturing)
+    setIsCapturing(!isCapturing)
   }
 
   const handleProfileClick = () => {
@@ -40,9 +68,12 @@ export default function Home() {
     <ThemeProvider>
       <div className="min-h-screen flex">
         <MainContent 
-          currentSong={currentSong || 'Start screen capture to generate adaptive music...'}
-          mood={mood || 'Waiting for page content analysis'}
-          readingContent={readingContent || 'Click "Start Live Capture" to begin analyzing webpage content and generating adaptive background music in real-time.'}
+          currentSong={currentSong}
+          mood={mood}
+          readingContent={readingContent || 'Click "Start Screen Capture" to begin analyzing webpage content and generating adaptive background music in real-time.'}
+          isCapturing={isCapturing}
+          musicGeneration={musicGeneration}
+          captureStatus={captureStatus}
         />
         
         <Sidebar
@@ -53,27 +84,18 @@ export default function Home() {
           onFadeChange={setFade}
           onAutoSwitchChange={setAutoSwitch}
           onProfileClick={handleProfileClick}
-          showOCR={showOCR}
-          onToggleOCR={() => setShowOCR(!showOCR)}
+          isCapturing={isCapturing}
+          onCaptureStateChange={toggleCapture}
         />
         
-        {showOCR && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto p-6" style={{ backgroundColor: 'var(--color-background)' }}>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold" style={{ color: 'var(--color-text-primary)' }}>Live Screen Capture & Music Generation</h2>
-                <button 
-                  onClick={() => setShowOCR(false)}
-                  className="text-2xl hover:opacity-70"
-                  style={{ color: 'var(--color-text-primary)' }}
-                >
-                  ×
-                </button>
-              </div>
-              <LiveScreenOCR onMusicUpdate={handleMusicUpdate} />
-            </div>
-          </div>
-        )}
+        {/* Hidden OCR component that runs in background */}
+        <div className="hidden">
+          <LiveScreenOCR 
+            onMusicUpdate={handleMusicUpdate} 
+            onCaptureStateChange={handleCaptureStateChange}
+            shouldStart={isCapturing}
+          />
+        </div>
         
         <BottomThemeToggle />
       </div>

@@ -10,10 +10,13 @@ interface LiveScreenOCRProps {
     tags?: string
     audioUrl?: string
     recognizedText?: string
+    musicGeneration?: any
   }) => void
+  onCaptureStateChange?: (capturing: boolean) => void
+  shouldStart?: boolean
 }
 
-export default function LiveScreenOCR({ onMusicUpdate }: LiveScreenOCRProps) {
+export default function LiveScreenOCR({ onMusicUpdate, onCaptureStateChange, shouldStart }: LiveScreenOCRProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const workerRef = useRef<TesseractWorker | null>(null)
@@ -75,17 +78,28 @@ export default function LiveScreenOCR({ onMusicUpdate }: LiveScreenOCRProps) {
 
   const start = useCallback(async () => {
     try {
+      console.log('Starting screen capture...')
       setStatus('Loading OCR...')
       await ensureScriptLoaded()
       await initWorker(language)
       setStatus('Requesting screen capture...')
+      console.log('Requesting display media...')
       const stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: false })
+      console.log('Stream obtained:', stream)
       streamRef.current = stream
+      
+      // Add stream end listener
+      stream.getVideoTracks()[0].addEventListener('ended', () => {
+        console.log('Stream ended by user')
+        void stop()
+      })
+      
       if (videoRef.current) {
         videoRef.current.srcObject = stream
       }
       setRunning(true)
       setStatus('Capturing...')
+      console.log('Capture started successfully')
 
       if (!canvasRef.current) {
         canvasRef.current = document.createElement('canvas')
@@ -144,7 +158,7 @@ export default function LiveScreenOCR({ onMusicUpdate }: LiveScreenOCRProps) {
                 lastHash = queuedHash
                 lastCommitTsRef.current = Date.now()
                 setRecognizedText(queued)
-                onMusicUpdate?.({ recognizedText: queued })
+                onMusicUpdate?.({ recognizedText: queued, musicGeneration })
                 void triggerMusicGeneration(queued)
                 const url = endpoint.trim()
                 if (url) {
@@ -166,7 +180,7 @@ export default function LiveScreenOCR({ onMusicUpdate }: LiveScreenOCRProps) {
         lastHash = h
         lastCommitTsRef.current = now
         setRecognizedText(trimmed)
-        onMusicUpdate?.({ recognizedText: trimmed })
+        onMusicUpdate?.({ recognizedText: trimmed, musicGeneration })
         void triggerMusicGeneration(trimmed)
         const url = endpoint.trim()
         if (url) {
@@ -181,7 +195,9 @@ export default function LiveScreenOCR({ onMusicUpdate }: LiveScreenOCRProps) {
       // Run one immediately for fast feedback
       void sample()
     } catch (e) {
+      console.error('Screen capture failed:', e)
       setStatus('Permission denied or capture failed.')
+      onCaptureStateChange?.(false)
       await stop()
     }
   }, [ensureScriptLoaded, initWorker, language, intervalMs, endpoint, useGrabFrame])
@@ -190,13 +206,15 @@ export default function LiveScreenOCR({ onMusicUpdate }: LiveScreenOCRProps) {
     if (text.length < 50) return // Skip very short text
     
     try {
-      setMusicGeneration(prev => ({
-        status: 'analyzing',
-        topics: prev.topics,
-        tags: prev.tags,
-        clipId: prev.clipId,
-        audioUrl: prev.audioUrl
-      }))
+      const newMusicGeneration = {
+        status: 'analyzing' as const,
+        topics: musicGeneration.topics,
+        tags: musicGeneration.tags,
+        clipId: musicGeneration.clipId,
+        audioUrl: musicGeneration.audioUrl
+      }
+      setMusicGeneration(newMusicGeneration)
+      onMusicUpdate?.({ musicGeneration: newMusicGeneration })
       
       // Step 1: Analyze with Cerebrus
       const cerebrusResponse = await fetch('/api/cerebrus-analyze', {
@@ -207,19 +225,23 @@ export default function LiveScreenOCR({ onMusicUpdate }: LiveScreenOCRProps) {
       
       const cerebrusResult = await cerebrusResponse.json()
       if (!cerebrusResult.ok) {
-        setMusicGeneration(prev => ({
-          status: 'error',
+        const errorGeneration = {
+          status: 'error' as const,
           error: `Analysis failed: ${cerebrusResult.error}`,
-          topics: prev.topics,
-          tags: prev.tags,
-          clipId: prev.clipId,
-          audioUrl: prev.audioUrl
-        }))
+          topics: musicGeneration.topics,
+          tags: musicGeneration.tags,
+          clipId: musicGeneration.clipId,
+          audioUrl: musicGeneration.audioUrl
+        }
+        setMusicGeneration(errorGeneration)
+        onMusicUpdate?.({ musicGeneration: errorGeneration })
         return
       }
       
       const { topics, tags } = cerebrusResult.data
-      setMusicGeneration(prev => ({ status: 'generating', topics, tags, audioUrl: prev.audioUrl, clipId: prev.clipId }))
+      const generatingState = { status: 'generating' as const, topics, tags, audioUrl: musicGeneration.audioUrl, clipId: musicGeneration.clipId }
+      setMusicGeneration(generatingState)
+      onMusicUpdate?.({ musicGeneration: generatingState })
       
       // Step 2: Generate music with Suno
       const sunoResponse = await fetch('/api/suno-generate', {
@@ -230,19 +252,23 @@ export default function LiveScreenOCR({ onMusicUpdate }: LiveScreenOCRProps) {
       
       const sunoResult = await sunoResponse.json()
       if (!sunoResult.ok) {
-        setMusicGeneration(prev => ({
-          status: 'error',
+        const errorGeneration = {
+          status: 'error' as const,
           error: `Music generation failed: ${sunoResult.error}`,
-          topics: prev.topics,
-          tags: prev.tags,
-          clipId: prev.clipId,
-          audioUrl: prev.audioUrl
-        }))
+          topics: musicGeneration.topics,
+          tags: musicGeneration.tags,
+          clipId: musicGeneration.clipId,
+          audioUrl: musicGeneration.audioUrl
+        }
+        setMusicGeneration(errorGeneration)
+        onMusicUpdate?.({ musicGeneration: errorGeneration })
         return
       }
       
       const clipId = sunoResult.clip_id
-      setMusicGeneration(prev => ({ status: 'generating', topics, tags, clipId, audioUrl: prev.audioUrl }))
+      const generatingWithClip = { status: 'generating' as const, topics, tags, clipId, audioUrl: musicGeneration.audioUrl }
+      setMusicGeneration(generatingWithClip)
+      onMusicUpdate?.({ musicGeneration: generatingWithClip })
       
       // Step 3: Poll for completion
       const pollForCompletion = async () => {
@@ -255,75 +281,118 @@ export default function LiveScreenOCR({ onMusicUpdate }: LiveScreenOCRProps) {
           
           const statusResult = await statusResponse.json()
           if (!statusResult.ok) {
-            setMusicGeneration(prev => ({
-              status: 'error',
+            const errorGeneration = {
+              status: 'error' as const,
               error: `Status check failed: ${statusResult.error}`,
-              topics: prev.topics,
-              tags: prev.tags,
-              clipId: prev.clipId,
-              audioUrl: prev.audioUrl
-            }))
+              topics: musicGeneration.topics,
+              tags: musicGeneration.tags,
+              clipId: musicGeneration.clipId,
+              audioUrl: musicGeneration.audioUrl
+            }
+            setMusicGeneration(errorGeneration)
+            onMusicUpdate?.({ musicGeneration: errorGeneration })
             return
           }
           
           if (statusResult.status === 'complete' || statusResult.status === 'streaming') {
-            setMusicGeneration({ 
-              status: 'ready', 
+            const readyGeneration = { 
+              status: 'ready' as const, 
               topics, 
               tags, 
               clipId, 
-              audioUrl: statusResult.audio_url 
-            })
+              audioUrl: statusResult.audio_url,
+              title: statusResult.title,
+              imageUrl: statusResult.image_url
+            }
+            setMusicGeneration(readyGeneration)
+            onMusicUpdate?.({ musicGeneration: readyGeneration })
           } else if (statusResult.status === 'error') {
-            setMusicGeneration(prev => ({
-              status: 'error',
+            const errorGeneration = {
+              status: 'error' as const,
               error: 'Generation failed on Suno side',
-              topics: prev.topics,
-              tags: prev.tags,
-              clipId: prev.clipId,
-              audioUrl: prev.audioUrl
-            }))
+              topics: musicGeneration.topics,
+              tags: musicGeneration.tags,
+              clipId: musicGeneration.clipId,
+              audioUrl: musicGeneration.audioUrl
+            }
+            setMusicGeneration(errorGeneration)
+            onMusicUpdate?.({ musicGeneration: errorGeneration })
           } else {
             // Still generating, check again in 5 seconds
             setTimeout(pollForCompletion, 5000)
           }
         } catch (e) {
-          setMusicGeneration(prev => ({
-            status: 'error',
+          const errorGeneration = {
+            status: 'error' as const,
             error: 'Polling failed',
-            topics: prev.topics,
-            tags: prev.tags,
-            clipId: prev.clipId,
-            audioUrl: prev.audioUrl
-          }))
+            topics: musicGeneration.topics,
+            tags: musicGeneration.tags,
+            clipId: musicGeneration.clipId,
+            audioUrl: musicGeneration.audioUrl
+          }
+          setMusicGeneration(errorGeneration)
+          onMusicUpdate?.({ musicGeneration: errorGeneration })
         }
       }
       
       setTimeout(pollForCompletion, 5000)
       
     } catch (e) {
-      setMusicGeneration(prev => ({
-        status: 'error',
+      const errorGeneration = {
+        status: 'error' as const,
         error: 'Pipeline failed',
-        topics: prev.topics,
-        tags: prev.tags,
-        clipId: prev.clipId,
-        audioUrl: prev.audioUrl
-      }))
+        topics: musicGeneration.topics,
+        tags: musicGeneration.tags,
+        clipId: musicGeneration.clipId,
+        audioUrl: musicGeneration.audioUrl
+      }
+      setMusicGeneration(errorGeneration)
+      onMusicUpdate?.({ musicGeneration: errorGeneration })
     }
-  }, [])
+  }, [musicGeneration, onMusicUpdate])
 
   const stop = useCallback(async () => {
+    console.log('Stop called, running:', running)
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
     if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null }
     if (workerRef.current) { await workerRef.current.terminate(); workerRef.current = null }
+    
+    // Stop audio playback
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.currentTime = 0
+    }
+    
+    // Reset states
     setRunning(false)
     setStatus('Stopped.')
-  }, [])
+    setRecognizedText('(waiting)')
+    setMusicGeneration({ status: 'idle' })
+    
+    // Notify parent to reset music generation state
+    onMusicUpdate?.({ 
+      recognizedText: '', 
+      musicGeneration: { status: 'idle' },
+      topics: '',
+      tags: '',
+      audioUrl: ''
+    })
+  }, [onMusicUpdate])
+
+  // Handle external start/stop control
+  useEffect(() => {
+    if (shouldStart && !running) {
+      console.log('Starting capture from external trigger')
+      void start()
+    } else if (!shouldStart && running) {
+      console.log('Stopping capture from external trigger')
+      void stop()
+    }
+  }, [shouldStart])
 
   useEffect(() => {
     return () => { void stop() }
-  }, [stop])
+  }, [])
 
   // Auto-play when a new audio URL becomes available
   useEffect(() => {
@@ -338,125 +407,13 @@ export default function LiveScreenOCR({ onMusicUpdate }: LiveScreenOCRProps) {
   }, [musicGeneration.audioUrl])
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          onClick={start}
-          disabled={running}
-          className="px-3 py-2 rounded border"
-          style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)', color: 'var(--color-text-primary)' }}
-        >
-          Start Capture
-        </button>
-        <button
-          onClick={() => void stop()}
-          disabled={!running}
-          className="px-3 py-2 rounded border"
-          style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)', color: 'var(--color-text-primary)' }}
-        >
-          Stop
-        </button>
-        <button
-          onClick={async () => {
-            if (!running) return
-            // Trigger a one-off sample by toggling timer briefly
-            // Reuse the periodic loop's immediate run by clearing and restarting
-            if (timerRef.current) {
-              clearInterval(timerRef.current)
-              timerRef.current = null
-            }
-            // Small immediate run by calling start again will re-run sample once at the end
-            // but we avoid restarting the stream. Instead, emulate by temporarily setting interval
-            const prev = intervalMs
-            setIntervalMs(400)
-            setTimeout(() => setIntervalMs(prev), 10)
-          }}
-          disabled={!running}
-          className="px-3 py-2 rounded border"
-          style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)', color: 'var(--color-text-primary)' }}
-        >
-          Capture Once
-        </button>
-
-        <label className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          Lang
-          <select value={language} onChange={e => setLanguage(e.target.value)} className="ml-2 px-2 py-1 rounded border" style={{ borderColor: 'var(--color-border)' }}>
-            <option value="eng">eng</option>
-            <option value="eng+spa">eng+spa</option>
-          </select>
-        </label>
-
-        <label className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          Interval (ms)
-          <input type="number" value={intervalMs} onChange={e => setIntervalMs(parseInt(e.target.value || '1200', 10))} className="ml-2 px-2 py-1 rounded border w-24" style={{ borderColor: 'var(--color-border)' }} />
-        </label>
-
-        <label className="text-sm flex-1" style={{ color: 'var(--color-text-secondary)' }}>
-          Endpoint
-          <input type="text" placeholder="/api/ocr-ingest or https://your-endpoint" value={endpoint} onChange={e => setEndpoint(e.target.value)} className="ml-2 px-2 py-1 rounded border w-full" style={{ borderColor: 'var(--color-border)' }} />
-        </label>
-
-        <label className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          Screenshot method
-          <select value={useGrabFrame ? 'grab' : 'video'} onChange={e => setUseGrabFrame(e.target.value === 'grab')} className="ml-2 px-2 py-1 rounded border" style={{ borderColor: 'var(--color-border)' }}>
-            <option value="grab">ImageCapture.grabFrame()</option>
-            <option value="video">Draw from video</option>
-          </select>
-        </label>
-      </div>
-
-      <video ref={videoRef} autoPlay muted playsInline className="w-full rounded border" style={{ borderColor: 'var(--color-border)' }} />
-      <div className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{status} Tip: pick "Window" in Chrome's picker if you want the capture to follow you as you switch tabs inside that window.</div>
-
-      <h3 className="text-lg font-semibold" style={{ color: 'var(--color-text-secondary)' }}>Recognized text</h3>
-      <pre className="rounded border p-3" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)', color: 'var(--color-text-primary)' }}>{recognizedText}</pre>
-      
-      <h3 className="text-lg font-semibold" style={{ color: 'var(--color-text-secondary)' }}>Music Generation</h3>
-      <div className="rounded border p-3 space-y-2" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Status:</span>
-          <span className={`text-sm px-2 py-1 rounded ${
-            musicGeneration.status === 'ready' ? 'bg-green-100 text-green-800' :
-            musicGeneration.status === 'error' ? 'bg-red-100 text-red-800' :
-            musicGeneration.status === 'analyzing' ? 'bg-blue-100 text-blue-800' :
-            musicGeneration.status === 'generating' ? 'bg-yellow-100 text-yellow-800' :
-            'bg-gray-100 text-gray-800'
-          }`}>
-            {musicGeneration.status === 'idle' ? 'Waiting for text' :
-             musicGeneration.status === 'analyzing' ? 'Analyzing vibe...' :
-             musicGeneration.status === 'generating' ? 'Generating music...' :
-             musicGeneration.status === 'ready' ? 'Ready to play' :
-             musicGeneration.status === 'error' ? 'Error' : 'Unknown'}
-          </span>
-        </div>
-        
-        {musicGeneration.topics && (
-          <div className="text-sm">
-            <span className="font-medium" style={{ color: 'var(--color-text-secondary)' }}>Topics:</span>
-            <span style={{ color: 'var(--color-text-primary)' }}> {musicGeneration.topics}</span>
-          </div>
-        )}
-        
-        {musicGeneration.tags && (
-          <div className="text-sm">
-            <span className="font-medium" style={{ color: 'var(--color-text-secondary)' }}>Tags:</span>
-            <span style={{ color: 'var(--color-text-primary)' }}> {musicGeneration.tags}</span>
-          </div>
-        )}
-        
-        {musicGeneration.error && (
-          <div className="text-sm text-red-600">{musicGeneration.error}</div>
-        )}
-        
-        {musicGeneration.audioUrl && (
-          <div className="pt-2">
-            <audio ref={audioRef} controls autoPlay className="w-full">
-              <source src={musicGeneration.audioUrl} type="audio/mpeg" />
-              Your browser does not support the audio element.
-            </audio>
-          </div>
-        )}
-      </div>
+    <div className="hidden">
+      {/* Hidden video element for screen capture */}
+      <video ref={videoRef} autoPlay muted playsInline />
+      {/* Hidden audio element for music playback */}
+      <audio ref={audioRef} controls autoPlay>
+        {musicGeneration.audioUrl && <source src={musicGeneration.audioUrl} type="audio/mpeg" />}
+      </audio>
     </div>
   )
 }
