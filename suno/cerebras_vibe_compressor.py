@@ -18,8 +18,8 @@ except ImportError:
     print("Warning: cerebras package not installed. Install with: pip install cerebras-cloud-sdk")
     Cerebras = None
 
-from schema_validator import VibeSchemaValidator, ValidationResult
-from text_preprocessor import TextPreprocessor
+from .schema_validator import VibeSchemaValidator, ValidationResult
+from .text_preprocessor import TextPreprocessor
 
 
 @dataclass
