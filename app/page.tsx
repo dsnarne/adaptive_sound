@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import MainContent from './components/MainContent'
 import Sidebar from './components/Sidebar'
-import BottomThemeToggle from './components/BottomThemeToggle'
+import FloatingThemeButton from './components/FloatingThemeButton'
 import LiveScreenOCR from './components/LiveScreenOCR'
 import { ThemeProvider } from './components/ThemeProvider'
 
@@ -97,7 +97,7 @@ export default function Home() {
           />
         </div>
         
-        <BottomThemeToggle />
+        <FloatingThemeButton />
       </div>
     </ThemeProvider>
   )
