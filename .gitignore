@@ -42,3 +42,4 @@ temp/
 *.log
 *.tsbuildinfo
 /.eslintcache
+.git.bak.20250913182516
