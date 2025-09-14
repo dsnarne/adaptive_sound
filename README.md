@@ -11,7 +11,7 @@ Tuneshift is a full-stack AI-powered application that generates personalized bac
 - **Session History**: Track and replay previously generated music
 - **Multiple Themes**: Choose from Blue (Dark), Green (Sage), or Orange (Muted) themes
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -51,7 +51,7 @@ modal deploy modal_functions/recent_plays.py
 npm run dev
 ```
 
-## 🏗️ Architecture
+## Architecture
 
 ### Real-Time Pipeline
 
