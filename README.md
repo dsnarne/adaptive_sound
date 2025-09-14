@@ -1,6 +1,6 @@
 # Tuneshift - Real-Time Adaptive Music Generation
 
-Tuneshift is a full-stack AI-powered application that generates personalized background music in real-time based on the content you're reading on your screen. By combining modern web technologies with specialized AI services, we achieve sub-12-second latency from screen capture to music playback.
+Tuneshift is a full-stack AI-powered application that generates personalized background music in real-time based on the content you're reading on your screen. By combining modern web technologies with specialized AI services (Cerebras, Suno, Modal), we achieve sub-12-second latency from screen capture to music playback.
 
 ## 🎵 Features
 
@@ -58,8 +58,8 @@ npm run dev
 1. **Screen Capture** → Browser captures screen content
 2. **OCR Processing** → Tesseract.js extracts text locally
 3. **Content Analysis** → Cerebras AI analyzes mood and topics (sub-second)
-4. **Music Generation** → Suno API generates personalized music (10-12 seconds)
-5. **Playback** → Custom player delivers seamless audio experience
+4. **Music Generation** → Suno API generates personalized music
+5. **Playback** → Custom player delivers seamless audio experience and session stats
 
 ### Tech Stack
 
