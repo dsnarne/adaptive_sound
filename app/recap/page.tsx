@@ -45,22 +45,30 @@ export default function RecapPage() {
 
   React.useEffect(() => {
     try {
-      const playsRaw = localStorage.getItem('adaptive_sound_plays') || '[]'
-      const allPlays: Array<{ 
-        started_at: string; 
-        tags: string; 
-        source?: string; 
-        clip_id?: string; 
-        session_id?: string 
-      }> = JSON.parse(playsRaw)
-      
-      // Get current session ID
-      const currentSessionId = localStorage.getItem('adaptive_sound_current_session_id')
-      
-      // Filter to current session and source="generate" for song count
-      const sessionPlays = allPlays.filter(p => 
-        p.session_id === currentSessionId && p.source === 'generate'
-      )
+      // Prefer snapshot captured at stop time to avoid races
+      const snapshotRaw = sessionStorage.getItem('adaptive_sound_recap_snapshot')
+      let sessionPlays: Array<{ started_at: string; tags: string; source?: string; clip_id?: string; session_id?: string }> = []
+      let sessionStartAt = ''
+      if (snapshotRaw) {
+        const snap = JSON.parse(snapshotRaw)
+        const allPlays = Array.isArray(snap?.plays) ? snap.plays : []
+        const currentSessionId = snap?.sessionId || null
+        sessionStartAt = snap?.sessionStartAt || ''
+        sessionPlays = allPlays.filter((p: any) => p?.session_id === currentSessionId && p?.source === 'generate')
+      } else {
+        // Fallback to live localStorage if no snapshot
+        const playsRaw = localStorage.getItem('adaptive_sound_plays') || '[]'
+        const allPlays: Array<{ 
+          started_at: string; 
+          tags: string; 
+          source?: string; 
+          clip_id?: string; 
+          session_id?: string 
+        }> = JSON.parse(playsRaw)
+        const currentSessionId = localStorage.getItem('adaptive_sound_current_session_id')
+        sessionStartAt = localStorage.getItem('adaptive_sound_current_session_started_at') || ''
+        sessionPlays = allPlays.filter(p => p.session_id === currentSessionId && p.source === 'generate')
+      }
       
       // Count unique songs by clip_id
       const uniqueClipIds = new Set(sessionPlays.map(p => p.clip_id).filter(Boolean))
@@ -90,9 +98,8 @@ export default function RecapPage() {
       }
 
       // Compute elapsed from session start to now (or last play)
-      const sessionStartRaw = localStorage.getItem('adaptive_sound_current_session_started_at')
-      if (sessionStartRaw && sessionPlays.length > 0) {
-        const sessionStart = new Date(sessionStartRaw).getTime()
+      if (sessionStartAt && sessionPlays.length > 0) {
+        const sessionStart = new Date(sessionStartAt).getTime()
         const lastPlay = Math.max(...sessionPlays.map(p => new Date(p.started_at).getTime()))
         const ms = Math.max(0, lastPlay - sessionStart)
         const mm = Math.floor(ms / 60000)
@@ -101,6 +108,15 @@ export default function RecapPage() {
       } else {
         setElapsed('00:00')
       }
+
+      // After computing, clear snapshot and any leftover session data for a clean slate
+      try {
+        sessionStorage.removeItem('adaptive_sound_recap_snapshot')
+        localStorage.removeItem('adaptive_sound_plays')
+        localStorage.removeItem('adaptive_sound_current_session_id')
+        localStorage.removeItem('adaptive_sound_current_session_started_at')
+        localStorage.removeItem('adaptive_sound_user_id')
+      } catch {}
     } catch {
       // ignore
     }

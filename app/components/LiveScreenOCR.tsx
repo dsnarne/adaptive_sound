@@ -21,6 +21,12 @@ interface LiveScreenOCRProps {
     started_at: string;
     source?: string;
   }>) => void;
+  onReplaySong?: (replayFn: (play: any) => void) => void;
+  onLiveModeControl?: (control: {
+    liveModeEnabled: boolean;
+    hasClickedRecentPlay: boolean;
+    resumeLiveMode: () => void;
+  }) => void;
   shouldStart?: boolean;
 }
 
@@ -39,6 +45,8 @@ export default function LiveScreenOCR({
   onMusicUpdate,
   onCaptureStateChange,
   onRecentPlaysUpdate,
+  onReplaySong,
+  onLiveModeControl,
   shouldStart,
 }: LiveScreenOCRProps) {
   console.log("LiveScreenOCR component mounted with shouldStart:", shouldStart);
@@ -79,6 +87,65 @@ export default function LiveScreenOCR({
   >([]);
   const [userId] = useState(() => getUserId());
   const [replayingClipId, setReplayingClipId] = useState<string | null>(null);
+  const [liveModeEnabled, setLiveModeEnabled] = useState<boolean>(true);
+  const [hasClickedRecentPlay, setHasClickedRecentPlay] = useState<boolean>(false);
+
+  // Handle switching to live mode with proper audio cleanup
+  const resumeLiveMode = useCallback(() => {
+    // Kill any current audio playback completely
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current.src = ''; // Clear source to fully stop
+    }
+    
+    // Enable live mode
+    setLiveModeEnabled(true);
+    
+    // If there's a current live song ready, play it immediately
+    if (musicGeneration.audioUrl && musicGeneration.status === "ready") {
+      setTimeout(() => {
+        if (audioRef.current && musicGeneration.audioUrl) {
+          audioRef.current.src = musicGeneration.audioUrl;
+          audioRef.current.load();
+          audioRef.current.play().catch((e) => {
+            console.log("Auto-play failed:", e);
+          });
+        }
+      }, 200);
+    } else {
+      // If no ready song, force a new generation cycle with current text
+      if (recognizedText && recognizedText !== "(waiting)" && recognizedText.length > 50) {
+        // Reset the freeze window to allow immediate generation
+        lastCommitTsRef.current = 0;
+        // The OCR loop will naturally pick this up and generate new music
+        console.log("Live mode resumed - will generate new music from current content");
+      }
+    }
+  }, [musicGeneration.audioUrl, musicGeneration.status, recognizedText]);
+
+  // Handle switching to previous music mode
+  const pauseLiveMode = useCallback(() => {
+    // Stop current audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    
+    // Disable live mode
+    setLiveModeEnabled(false);
+  }, []);
+
+  // Expose live mode control to parent (Recent Plays header button)
+  useEffect(() => {
+    if (onLiveModeControl) {
+      onLiveModeControl({
+        liveModeEnabled,
+        hasClickedRecentPlay,
+        resumeLiveMode,
+      });
+    }
+  }, [onLiveModeControl, liveModeEnabled, hasClickedRecentPlay, resumeLiveMode]);
 
   // Freeze window to avoid constant regenerations
   const freezeWindowMs = 25000;
@@ -159,8 +226,14 @@ export default function LiveScreenOCR({
     async (playRecord: any) => {
       if (audioRef.current && playRecord.url) {
         setReplayingClipId(playRecord.clip_id); // Show spinner
+        setHasClickedRecentPlay(true); // Enable the toggle functionality
+        setLiveModeEnabled(false); // Switch to paused mode
 
         try {
+          // Stop current audio first
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+          
           audioRef.current.src = playRecord.url;
           audioRef.current.load();
           await audioRef.current.play();
@@ -295,7 +368,11 @@ export default function LiveScreenOCR({
                 lastCommitTsRef.current = Date.now();
                 setRecognizedText(queued);
                 onMusicUpdate?.({ recognizedText: queued, musicGeneration });
-                void triggerMusicGeneration(queued);
+                
+                // Only trigger music generation if live mode is enabled
+                if (liveModeEnabled) {
+                  void triggerMusicGeneration(queued);
+                }
                 const url = endpoint.trim();
                 if (url) {
                   fetch(url, {
@@ -317,7 +394,11 @@ export default function LiveScreenOCR({
         lastCommitTsRef.current = now;
         setRecognizedText(trimmed);
         onMusicUpdate?.({ recognizedText: trimmed, musicGeneration });
-        void triggerMusicGeneration(trimmed);
+        
+        // Only trigger music generation if live mode is enabled
+        if (liveModeEnabled) {
+          void triggerMusicGeneration(trimmed);
+        }
         const url = endpoint.trim();
         if (url) {
           fetch(url, {
@@ -343,6 +424,7 @@ export default function LiveScreenOCR({
     intervalMs,
     endpoint,
     useGrabFrame,
+    liveModeEnabled,
   ]);
 
   const triggerMusicGeneration = useCallback(
@@ -537,6 +619,7 @@ export default function LiveScreenOCR({
     setStatus("Stopped.");
     setRecognizedText("(waiting)");
     setMusicGeneration({ status: "idle" });
+    setRecentPlays([]); // Clear recent plays
 
     // Notify parent to reset music generation state
     onMusicUpdate?.({
@@ -623,6 +706,13 @@ export default function LiveScreenOCR({
     }
   }, [recentPlays.length]); // Only when length changes (initial load)
 
+  // Expose replay function to parent
+  useEffect(() => {
+    if (onReplaySong) {
+      onReplaySong(replayPreviousSong);
+    }
+  }, [onReplaySong, replayPreviousSong]);
+
   return (
     <>
       {/* Hidden video element for screen capture */}
@@ -635,7 +725,6 @@ export default function LiveScreenOCR({
           )}
         </audio>
       </div>
-
     </>
   );
 }

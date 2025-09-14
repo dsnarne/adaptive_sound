@@ -54,6 +54,8 @@ export default function MainPage() {
     started_at: string;
     source?: string;
   }>>([])
+  const [replaySongFn, setReplaySongFn] = useState<((play: any) => void) | null>(null)
+  const [liveModeControl, setLiveModeControl] = useState<{ liveModeEnabled: boolean; hasClickedRecentPlay: boolean; resumeLiveMode: () => void } | null>(null)
   const [musicGeneration, setMusicGeneration] = useState<{
     status: 'idle' | 'analyzing' | 'generating' | 'ready' | 'error'
     topics?: string
@@ -114,6 +116,10 @@ export default function MainPage() {
     setRecentPlays(plays)
   }
 
+  const handleReplaySong = (replayFn: (play: any) => void) => {
+    setReplaySongFn(() => replayFn)
+  }
+
   const toggleCapture = () => {
     setIsCapturing(!isCapturing)
   }
@@ -169,12 +175,35 @@ export default function MainPage() {
     // Stop screen capture
     setIsCapturing(false)
     
+    // Snapshot current session for recap before clearing persistent storage
+    try {
+      const playsRaw = localStorage.getItem('adaptive_sound_plays') || '[]'
+      const sessionId = localStorage.getItem('adaptive_sound_current_session_id') || ''
+      const sessionStartAt = localStorage.getItem('adaptive_sound_current_session_started_at') || ''
+      const snapshot = {
+        plays: JSON.parse(playsRaw),
+        sessionId,
+        sessionStartAt,
+        endedAt: new Date().toISOString()
+      }
+      sessionStorage.setItem('adaptive_sound_recap_snapshot', JSON.stringify(snapshot))
+    } catch {}
+
+    // Clear persisted session data
+    try {
+      localStorage.removeItem('adaptive_sound_plays')
+      localStorage.removeItem('adaptive_sound_current_session_id')
+      localStorage.removeItem('adaptive_sound_current_session_started_at')
+      localStorage.removeItem('adaptive_sound_user_id')
+    } catch {}
+
     // Reset music generation state
     setMusicGeneration({ status: 'idle' })
     setCurrentSong('')
     setMood('')
     setReadingContent('')
     setCaptureStatus('')
+    setRecentPlays([]) // Clear recent plays on session end
     
     // Hide the stop button after clicking
     setShowStopButton(false)
@@ -237,6 +266,8 @@ export default function MainPage() {
             onMusicUpdate={handleMusicUpdate} 
             onCaptureStateChange={handleCaptureStateChange}
             onRecentPlaysUpdate={handleRecentPlaysUpdate}
+            onReplaySong={handleReplaySong}
+            onLiveModeControl={setLiveModeControl}
             shouldStart={isCapturing}
           />
         </div>
@@ -273,20 +304,41 @@ export default function MainPage() {
                   borderColor: 'var(--color-border)'
                 }}
               >
-                <div className="mb-4">
+                <div className="mb-4 flex items-center justify-between">
                   <h2 
                     className="text-lg font-semibold"
                     style={{ color: 'var(--color-text-primary)' }}
                   >
                     Recent Plays
                   </h2>
+                  {/* Live Mode Toggle inside the Recent Plays header */}
+                  {liveModeControl && (
+                    <button
+                      onClick={
+                        liveModeControl.liveModeEnabled || !liveModeControl.hasClickedRecentPlay
+                          ? undefined
+                          : liveModeControl.resumeLiveMode
+                      }
+                      className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                        liveModeControl.liveModeEnabled
+                          ? 'bg-green-500 text-white cursor-default'
+                          : liveModeControl.hasClickedRecentPlay
+                          ? 'bg-orange-500 hover:bg-orange-600 text-white cursor-pointer'
+                          : 'bg-green-500 text-white cursor-default'
+                      }`}
+                    >
+                      {liveModeControl.liveModeEnabled ? 'Live Mode ON' : 'Continue Live Play'}
+                    </button>
+                  )}
                 </div>
                 <div className="space-y-3 max-h-96 overflow-y-auto">
                   {recentPlays.length > 0 ? (
                     recentPlays.map((play, idx) => (
-                      <div
+                      <button
                         key={idx}
-                        className="p-3 rounded border"
+                        onClick={() => replaySongFn && replaySongFn(play)}
+                        disabled={!replaySongFn}
+                        className="w-full text-left p-3 rounded border hover:opacity-80 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                         style={{ 
                           backgroundColor: 'var(--color-background)',
                           borderColor: 'var(--color-border)'
@@ -294,7 +346,7 @@ export default function MainPage() {
                       >
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>
-                            Generated
+                            🎵 {play.source === "replay" ? "🔄" : "Generated"}
                           </span>
                           <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
                             {new Date(play.started_at).toLocaleTimeString()}
@@ -306,7 +358,7 @@ export default function MainPage() {
                         <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
                           {play.tags || 'No tags'}
                         </div>
-                      </div>
+                      </button>
                     ))
                   ) : (
                     <div className="text-sm text-center py-8" style={{ color: 'var(--color-text-muted)' }}>

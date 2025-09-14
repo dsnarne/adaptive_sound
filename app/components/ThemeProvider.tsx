@@ -16,12 +16,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Initialize theme from localStorage or default to 'dark'
   const [themeName, setThemeName] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('adaptive-sound-theme') || 'dark';
+      const savedTheme = localStorage.getItem('adaptive-sound-theme') || 'dark';
+      // Validate that the saved theme exists in colorSchemes
+      return colorSchemes[savedTheme] ? savedTheme : 'dark';
     }
     return 'dark';
   });
   
-  const currentTheme = colorSchemes[themeName];
+  const currentTheme = colorSchemes[themeName] || colorSchemes['dark']; // Fallback to dark theme
   const availableThemes = Object.keys(colorSchemes);
 
   const setTheme = (newThemeName: string) => {
