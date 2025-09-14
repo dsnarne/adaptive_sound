@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { spawn } from 'child_process'
 import path from 'path'
 
-export async function POST(req: NextRequest) {
+export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     const body = await req.json().catch(() => ({})) as { clip_id?: string }
     if (!body?.clip_id) {
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     const { clip_id } = body
     
     // Call the Python Suno script to check status
-    return new Promise((resolve) => {
+    return new Promise<NextResponse>((resolve) => {
       const python = spawn('python3', ['-c', `
 import sys
 sys.path.append('${path.join(process.cwd(), 'suno')}')

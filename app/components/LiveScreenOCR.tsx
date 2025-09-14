@@ -13,6 +13,14 @@ interface LiveScreenOCRProps {
     musicGeneration?: any;
   }) => void;
   onCaptureStateChange?: (capturing: boolean) => void;
+  onRecentPlaysUpdate?: (plays: Array<{
+    clip_id: string;
+    url: string;
+    topics: string;
+    tags: string;
+    started_at: string;
+    source?: string;
+  }>) => void;
   shouldStart?: boolean;
 }
 
@@ -30,6 +38,7 @@ const getUserId = () => {
 export default function LiveScreenOCR({
   onMusicUpdate,
   onCaptureStateChange,
+  onRecentPlaysUpdate,
   shouldStart,
 }: LiveScreenOCRProps) {
   console.log("LiveScreenOCR component mounted with shouldStart:", shouldStart);
@@ -140,6 +149,11 @@ export default function LiveScreenOCR({
       console.error("Failed to fetch recent plays:", e);
     }
   }, [userId]);
+
+  // Separate function to notify parent of recent plays updates
+  const notifyRecentPlaysUpdate = useCallback((plays: any[]) => {
+    onRecentPlaysUpdate?.(plays);
+  }, [onRecentPlaysUpdate]);
 
   const replayPreviousSong = useCallback(
     async (playRecord: any) => {
@@ -587,18 +601,27 @@ export default function LiveScreenOCR({
         setRecentPlays((prev) => {
           const exists = prev.some((p) => p.clip_id === playRecord.clip_id);
           if (!exists) {
-            return [...prev, playRecord].slice(-10);
+            const newPlays = [...prev, playRecord].slice(-10);
+            notifyRecentPlaysUpdate(newPlays); // Notify parent component
+            return newPlays;
           }
           return prev;
         });
       } catch {}
     }
-  }, [musicGeneration.audioUrl, musicGeneration.status, recordPlay]);
+  }, [musicGeneration.audioUrl, musicGeneration.status, recordPlay, notifyRecentPlaysUpdate]);
 
-  // Load recent plays on component mount
+  // Load recent plays on component mount only
   useEffect(() => {
     fetchRecentPlays();
-  }, [fetchRecentPlays]);
+  }, []); // Empty dependency array - only run once on mount
+
+  // Notify parent when recent plays are initially loaded
+  useEffect(() => {
+    if (recentPlays.length > 0) {
+      notifyRecentPlaysUpdate(recentPlays);
+    }
+  }, [recentPlays.length]); // Only when length changes (initial load)
 
   return (
     <>
@@ -613,42 +636,6 @@ export default function LiveScreenOCR({
         </audio>
       </div>
 
-      {/* Recent Plays UI - Only show when there are recent plays */}
-      {recentPlays.length > 0 && (
-        <div className="fixed bottom-4 right-4 w-80 max-h-96 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 z-50">
-          <h4 className="text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
-            Recent Plays ({recentPlays.length})
-          </h4>
-          <div className="space-y-2 max-h-64 overflow-y-auto">
-            {recentPlays.map((play, idx) => {
-              const isReplaying = replayingClipId === play.clip_id;
-              const isReplay = play.source === "replay";
-
-              return (
-                <button
-                  key={idx}
-                  onClick={() => replayPreviousSong(play)}
-                  disabled={isReplaying}
-                  className="w-full text-left p-2 rounded border hover:opacity-80 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200"
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="text-xs font-medium truncate">
-                      {isReplay ? "🔄" : "🎵"} {play.topics}
-                    </div>
-                    {isReplaying && (
-                      <div className="text-xs opacity-70">⏳</div>
-                    )}
-                  </div>
-                  <div className="text-xs opacity-70 truncate">{play.tags}</div>
-                  <div className="text-xs opacity-50 mt-1">
-                    {new Date(play.started_at).toLocaleTimeString()}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </>
   );
 }

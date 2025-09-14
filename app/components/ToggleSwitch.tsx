@@ -6,6 +6,15 @@ interface ToggleSwitchProps {
 }
 
 export default function ToggleSwitch({ label, enabled, disabled = false, onChange }: ToggleSwitchProps) {
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!disabled) {
+      console.log(`${label} toggle clicked: ${enabled} -> ${!enabled}`);
+      onChange(!enabled);
+    }
+  };
+
   return (
     <div className="flex items-center justify-between py-3">
       <span 
@@ -17,7 +26,7 @@ export default function ToggleSwitch({ label, enabled, disabled = false, onChang
         {label}
       </span>
       <button
-        onClick={() => !disabled && onChange(!enabled)}
+        onClick={handleClick}
         disabled={disabled}
         className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
         style={{

@@ -6,41 +6,33 @@ import { ThemeProvider, useTheme } from '../components/ThemeProvider'
 import ToggleSwitch from '../components/ToggleSwitch'
 
 function ThemeButton() {
-  const { themeName, setTheme, availableThemes } = useTheme()
-
-  const getNextTheme = () => {
-    const currentIndex = availableThemes.indexOf(themeName)
-    const nextIndex = (currentIndex + 1) % availableThemes.length
-    return availableThemes[nextIndex]
-  }
+  const { themeName, setTheme } = useTheme()
 
   const handleToggle = () => {
-    setTheme(getNextTheme())
-  }
-
-  const getThemeColor = (theme: string) => {
-    switch (theme) {
-      case 'blue': return 'rgb(71, 85, 105)'
-      case 'green': return 'rgb(132, 148, 132)'
-      case 'orange': return 'rgb(180, 130, 90)'
-      default: return 'var(--color-primary)'
-    }
+    setTheme(themeName === 'dark' ? 'light' : 'dark')
   }
 
   return (
     <button
       onClick={handleToggle}
-      className="w-10 h-10 rounded-full border-2 transition-all hover:scale-105"
+      className="w-10 h-10 rounded-full border-2 transition-all hover:scale-105 flex items-center justify-center"
       style={{
         backgroundColor: 'var(--color-surface)',
         borderColor: 'var(--color-border)',
       }}
-      title={`Switch theme`}
+      title={`Switch to ${themeName === 'dark' ? 'light' : 'dark'} mode`}
     >
-      <div
-        className="w-5 h-5 rounded-full mx-auto"
-        style={{ backgroundColor: getThemeColor(themeName) }}
-      />
+      {themeName === 'dark' ? (
+        // Sun icon for light mode
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" style={{ color: 'var(--color-text-primary)' }}>
+          <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+        </svg>
+      ) : (
+        // Moon icon for dark mode
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" style={{ color: 'var(--color-text-primary)' }}>
+          <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+        </svg>
+      )}
     </button>
   )
 }
@@ -50,6 +42,23 @@ export default function SettingsPage() {
   const [autoplay, setAutoplay] = useState(true)
   const [fade, setFade] = useState(true)
   const [autoSwitch, setAutoSwitch] = useState(false)
+
+  // Debug state changes
+  const handleAutoplayChange = (enabled: boolean) => {
+    console.log('Settings: Autoplay state changing to:', enabled)
+    setAutoplay(enabled)
+  }
+
+  const handleFadeChange = (enabled: boolean) => {
+    console.log('Settings: Fade state changing to:', enabled)
+    setFade(enabled)
+  }
+
+  const handleAutoSwitchChange = (enabled: boolean) => {
+    console.log('Settings: Auto-switch state changing to:', enabled)
+    setAutoSwitch(enabled)
+  }
+
 
 
   const handleScreenShare = async () => {
@@ -93,20 +102,19 @@ export default function SettingsPage() {
                 <ToggleSwitch
                   label="Autoplay"
                   enabled={autoplay}
-                  onChange={setAutoplay}
+                  onChange={handleAutoplayChange}
                 />
                 
                 <ToggleSwitch
                   label="Fade"
                   enabled={fade}
-                  disabled={!autoplay}
-                  onChange={setFade}
+                  onChange={handleFadeChange}
                 />
                 
                 <ToggleSwitch
                   label="Auto-switch"
                   enabled={autoSwitch}
-                  onChange={setAutoSwitch}
+                  onChange={handleAutoSwitchChange}
                 />
               </div>
             </div>

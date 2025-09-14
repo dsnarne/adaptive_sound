@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { spawn } from 'child_process'
 import path from 'path'
 
-export async function POST(req: NextRequest) {
+export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     const body = await req.json().catch(() => ({})) as { text?: string }
     if (!body?.text) {
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Call the Python Cerebrus script
-    return new Promise((resolve) => {
+    return new Promise<NextResponse>((resolve) => {
       const python = spawn('python3', ['-c', `
 import sys
 sys.path.append('${process.cwd().replace(/\\/g, '\\\\')}')

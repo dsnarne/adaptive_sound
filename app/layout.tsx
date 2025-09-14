@@ -5,7 +5,7 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Adaptive Sound',
+  title: 'Tuneshift',
   description: 'Generate music that matches the mood of any webpage',
 }
 

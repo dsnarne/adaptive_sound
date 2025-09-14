@@ -28,7 +28,7 @@ export default function MainContent({ currentSong, mood, readingContent, isCaptu
           className="text-3xl font-bold mb-8"
           style={{ color: 'var(--color-text-primary)' }}
         >
-          Adaptive Sound
+          Tuneshift
         </h1>
         
         <div className="space-y-6">

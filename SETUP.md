@@ -1,4 +1,4 @@
-# Adaptive Sound Setup Guide
+# Tuneshift Setup Guide
 
 ## Complete Pipeline: OCR → Cerebrus → Suno
 

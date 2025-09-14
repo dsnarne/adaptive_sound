@@ -62,7 +62,6 @@ export default function Sidebar({
           <ToggleSwitch
             label="Fade"
             enabled={fade}
-            disabled={!autoplay}
             onChange={onFadeChange}
           />
           
@@ -81,7 +80,7 @@ export default function Sidebar({
           className="text-center text-xs"
           style={{ color: 'var(--color-text-muted)' }}
         >
-          <p>Adaptive Sound v1.0</p>
+          <p>Tuneshift v1.0</p>
           <p className="mt-1">Powered by Suno AI</p>
         </div>
       </div>

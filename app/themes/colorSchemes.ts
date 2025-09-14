@@ -15,7 +15,7 @@ export interface ColorScheme {
 }
 
 export const colorSchemes: Record<string, ColorScheme> = {
-  blue: {
+  dark: {
     name: 'Dark Mode',
     primary: 'rgb(71, 85, 105)', // slate-600
     secondary: 'rgb(100, 116, 139)', // slate-500
@@ -31,35 +31,19 @@ export const colorSchemes: Record<string, ColorScheme> = {
     hover: 'rgb(100, 116, 139)' // slate-500
   },
   
-  green: {
-    name: 'Sage Green',
-    primary: 'rgb(101, 128, 101)', // darker sage green for better contrast
-    secondary: 'rgb(132, 148, 132)', // medium sage
-    accent: 'rgb(159, 175, 159)', // light sage
-    background: 'rgb(245, 248, 245)', // sage-tinted white
-    surface: 'rgb(255, 255, 255)',
+  light: {
+    name: 'Light Mode',
+    primary: 'rgb(30, 215, 96)', // Spotify green
+    secondary: 'rgb(25, 200, 85)', // darker Spotify green
+    accent: 'rgb(40, 230, 110)', // lighter Spotify green
+    background: 'rgb(255, 255, 255)', // pure white
+    surface: 'rgb(248, 249, 250)', // very light gray
     text: {
-      primary: 'rgb(25, 35, 25)', // much darker sage for better contrast
-      secondary: 'rgb(45, 60, 45)', // dark sage
-      muted: 'rgb(75, 90, 75)' // medium sage
+      primary: 'rgb(0, 0, 0)', // black text
+      secondary: 'rgb(40, 40, 40)', // dark gray
+      muted: 'rgb(100, 100, 100)' // medium gray
     },
-    border: 'rgb(200, 215, 200)', // sage border
-    hover: 'rgb(85, 110, 85)' // darker sage hover
-  },
-
-  orange: {
-    name: 'Muted Orange',
-    primary: 'rgb(160, 110, 70)', // darker muted orange for better contrast
-    secondary: 'rgb(140, 95, 60)', // even darker orange
-    accent: 'rgb(180, 130, 90)', // medium orange
-    background: 'rgb(250, 246, 242)', // warm off-white
-    surface: 'rgb(255, 255, 255)',
-    text: {
-      primary: 'rgb(60, 40, 25)', // much darker brown for better contrast
-      secondary: 'rgb(90, 65, 45)', // dark brown
-      muted: 'rgb(120, 90, 70)' // medium brown
-    },
-    border: 'rgb(220, 205, 190)', // warm beige border
-    hover: 'rgb(130, 90, 55)' // darker orange hover
+    border: 'rgb(220, 220, 220)', // light gray border
+    hover: 'rgb(20, 180, 75)' // darker green hover
   }
 };
