@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { useRouter } from 'next/navigation'
 import { ThemeProvider, useTheme } from '../components/ThemeProvider'
 
@@ -45,6 +46,73 @@ function ThemeButton() {
 
 export default function RecapPage() {
   const router = useRouter()
+  const [elapsed, setElapsed] = React.useState<string>('00:00')
+  const [songsListened, setSongsListened] = React.useState<number>(0)
+  const [mostFrequentMood, setMostFrequentMood] = React.useState<string>('-')
+  const [uniqueMoods, setUniqueMoods] = React.useState<number>(0)
+
+  React.useEffect(() => {
+    try {
+      const playsRaw = localStorage.getItem('adaptive_sound_plays') || '[]'
+      const allPlays: Array<{ 
+        started_at: string; 
+        tags: string; 
+        source?: string; 
+        clip_id?: string; 
+        session_id?: string 
+      }> = JSON.parse(playsRaw)
+      
+      // Get current session ID
+      const currentSessionId = localStorage.getItem('adaptive_sound_current_session_id')
+      
+      // Filter to current session and source="generate" for song count
+      const sessionPlays = allPlays.filter(p => 
+        p.session_id === currentSessionId && p.source === 'generate'
+      )
+      
+      // Count unique songs by clip_id
+      const uniqueClipIds = new Set(sessionPlays.map(p => p.clip_id).filter(Boolean))
+      setSongsListened(uniqueClipIds.size)
+
+      // Compute unique tags across current session and most-listened genre (by first tag)
+      const moodCounts: Record<string, number> = {}
+      const uniqueTagSet = new Set<string>()
+      for (const p of sessionPlays) {
+        const tokens = (p.tags || '')
+          .split(',')
+          .map(t => t.trim())
+          .filter(Boolean)
+        // Count all tags for uniqueness (case-insensitive)
+        for (const t of tokens) {
+          uniqueTagSet.add(t.toLowerCase())
+        }
+        // Keep most-listened genre logic based on the first tag
+        const first = tokens[0] || 'Unknown'
+        moodCounts[first] = (moodCounts[first] || 0) + 1
+      }
+      setUniqueMoods(uniqueTagSet.size)
+      const entries = Object.entries(moodCounts)
+      if (entries.length) {
+        entries.sort((a, b) => b[1] - a[1])
+        setMostFrequentMood(entries[0][0])
+      }
+
+      // Compute elapsed from session start to now (or last play)
+      const sessionStartRaw = localStorage.getItem('adaptive_sound_current_session_started_at')
+      if (sessionStartRaw && sessionPlays.length > 0) {
+        const sessionStart = new Date(sessionStartRaw).getTime()
+        const lastPlay = Math.max(...sessionPlays.map(p => new Date(p.started_at).getTime()))
+        const ms = Math.max(0, lastPlay - sessionStart)
+        const mm = Math.floor(ms / 60000)
+        const ss = Math.floor((ms % 60000) / 1000)
+        setElapsed(`${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`)
+      } else {
+        setElapsed('00:00')
+      }
+    } catch {
+      // ignore
+    }
+  }, [])
 
   const handleStartNewSession = () => {
     router.push('/start')
@@ -100,7 +168,7 @@ export default function RecapPage() {
                     </svg>
                   </div>
                   <div className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
-                    24:35
+                    {elapsed}
                   </div>
                   <div className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                     Time Used
@@ -124,14 +192,14 @@ export default function RecapPage() {
                     </svg>
                   </div>
                   <div className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
-                    7
+                    {songsListened}
                   </div>
                   <div className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                     Songs Listened
                   </div>
                 </div>
                 
-                {/* Most Frequent Mood */}
+                {/* Most Listened Genre */}
                 <div 
                   className="text-center p-6 rounded-lg"
                   style={{ backgroundColor: 'var(--color-background)' }}
@@ -148,10 +216,10 @@ export default function RecapPage() {
                     </svg>
                   </div>
                   <div className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-                    Focused
+                    {mostFrequentMood}
                   </div>
                   <div className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                    Most Frequent Mood
+                    Most Listened Genre
                   </div>
                 </div>
                 
@@ -172,7 +240,7 @@ export default function RecapPage() {
                     </svg>
                   </div>
                   <div className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
-                    4
+                    {uniqueMoods}
                   </div>
                   <div className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                     Unique Moods

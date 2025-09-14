@@ -10,8 +10,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Get Modal endpoint URL from environment (function-specific URL)
-    const modalRecordUrl = process.env.MODAL_RECORD_PLAY_URL || process.env.MODAL_ENDPOINT_URL + '/plays'
+    const modalRecordUrl = process.env.MODAL_RECORD_PLAY_URL || (process.env.MODAL_ENDPOINT_URL ? process.env.MODAL_ENDPOINT_URL + '/plays' : undefined)
     const authToken = process.env.MODAL_AUTH_TOKEN || 'demo-token-12345'
+
+    // If no Modal endpoint configured, act as a no-op to avoid dev errors
+    if (!modalRecordUrl) {
+      return NextResponse.json({ ok: true, data: { noop: true } })
+    }
 
     // Call Modal web endpoint directly
     const response = await fetch(modalRecordUrl, {

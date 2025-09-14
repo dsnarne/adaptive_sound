@@ -11,8 +11,13 @@ export async function GET(req: NextRequest) {
     }
 
     // Get Modal endpoint URL from environment (function-specific URL)
-    const modalGetPlaysUrl = process.env.MODAL_GET_PLAYS_URL || process.env.MODAL_ENDPOINT_URL + '/plays'
+    const modalGetPlaysUrl = process.env.MODAL_GET_PLAYS_URL || (process.env.MODAL_ENDPOINT_URL ? process.env.MODAL_ENDPOINT_URL + '/plays' : undefined)
     const authToken = process.env.MODAL_AUTH_TOKEN || 'demo-token-12345'
+
+    // If no Modal endpoint configured, return empty list to avoid dev errors
+    if (!modalGetPlaysUrl) {
+      return NextResponse.json({ ok: true, data: [] })
+    }
 
     // Call Modal web endpoint directly
     const response = await fetch(`${modalGetPlaysUrl}?user_id=${user_id}&limit=${limit}`, {

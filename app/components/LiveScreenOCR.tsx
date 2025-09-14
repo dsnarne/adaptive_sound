@@ -40,6 +40,7 @@ export default function LiveScreenOCR({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const commitTimerRef = useRef<NodeJS.Timeout | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
   const [running, setRunning] = useState(false);
   const [recognizedText, setRecognizedText] = useState<string>("(waiting)");
   const [status, setStatus] = useState<string>("");
@@ -164,6 +165,7 @@ export default function LiveScreenOCR({
             ...playRecord,
             source: "replay",
             started_at: new Date().toISOString(),
+            session_id: sessionIdRef.current || "unknown_session",
           };
           recordPlay(replayRecord);
         } catch (error) {
@@ -184,6 +186,17 @@ export default function LiveScreenOCR({
       await initWorker(language);
       setStatus("Requesting screen capture...");
       console.log("Requesting display media...");
+
+      // Initialize a new session ID for recap grouping
+      const newSessionId = `session_${Date.now()}`;
+      sessionIdRef.current = newSessionId;
+      try {
+        localStorage.setItem("adaptive_sound_current_session_id", newSessionId);
+        localStorage.setItem(
+          "adaptive_sound_current_session_started_at",
+          new Date().toISOString()
+        );
+      } catch {}
 
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: { frameRate: 15 },
@@ -556,10 +569,19 @@ export default function LiveScreenOCR({
           tags: musicGeneration.tags || "",
           started_at: new Date().toISOString(),
           source: "generate",
+          session_id: sessionIdRef.current || "unknown_session",
         };
 
         // Async record to Modal.Dict
         recordPlay(playRecord);
+
+        // Persist locally for recap
+        try {
+          const existingRaw = localStorage.getItem("adaptive_sound_plays") || "[]";
+          const existing = JSON.parse(existingRaw);
+          existing.push(playRecord);
+          localStorage.setItem("adaptive_sound_plays", JSON.stringify(existing.slice(-100)));
+        } catch {}
 
         // Update local state for immediate UI feedback (only if not already present)
         setRecentPlays((prev) => {
