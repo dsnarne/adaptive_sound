@@ -14,9 +14,10 @@ interface MainContentProps {
     error?: string
   };
   captureStatus?: string;
+  onCaptureStateChange?: () => void;
 }
 
-export default function MainContent({ currentSong, mood, readingContent, isCapturing, musicGeneration, captureStatus }: MainContentProps) {
+export default function MainContent({ currentSong, mood, readingContent, isCapturing, musicGeneration, captureStatus, onCaptureStateChange }: MainContentProps) {
   return (
     <div 
       className="flex-1 p-8"
@@ -31,6 +32,24 @@ export default function MainContent({ currentSong, mood, readingContent, isCaptu
         </h1>
         
         <div className="space-y-6">
+          {/* Screen Capture Button */}
+          <div className="flex justify-center">
+            <button
+              onClick={() => onCaptureStateChange?.()}
+              className={`px-8 py-4 rounded-lg font-medium transition-colors text-lg ${
+                isCapturing 
+                  ? 'bg-red-500 hover:bg-red-600 text-white' 
+                  : 'text-white'
+              }`}
+              style={{ 
+                backgroundColor: isCapturing ? undefined : 'var(--color-primary)',
+                color: isCapturing ? undefined : 'white'
+              }}
+            >
+              {isCapturing ? 'Stop Screen Capture' : 'Start Screen Capture'}
+            </button>
+          </div>
+          
           <div 
             className="rounded-lg shadow-sm border p-6"
             style={{ 

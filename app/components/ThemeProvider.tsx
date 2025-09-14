@@ -13,13 +13,24 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [themeName, setThemeName] = useState('green');
+  // Initialize theme from localStorage or default to 'green'
+  const [themeName, setThemeName] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('adaptive-sound-theme') || 'green';
+    }
+    return 'green';
+  });
+  
   const currentTheme = colorSchemes[themeName];
   const availableThemes = Object.keys(colorSchemes);
 
   const setTheme = (newThemeName: string) => {
     if (colorSchemes[newThemeName]) {
       setThemeName(newThemeName);
+      // Persist theme to localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('adaptive-sound-theme', newThemeName);
+      }
     }
   };
 

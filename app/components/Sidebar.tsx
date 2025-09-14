@@ -74,26 +74,6 @@ export default function Sidebar({
         </div>
       </div>
       
-      {/* Screen Capture Section */}
-      <div className="mt-6">
-        <button
-          onClick={() => onCaptureStateChange?.()}
-          className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
-            isCapturing 
-              ? 'bg-red-500 hover:bg-red-600 text-white' 
-              : 'text-white'
-          }`}
-          style={{ 
-            backgroundColor: isCapturing ? undefined : 'var(--color-primary)',
-            color: isCapturing ? undefined : 'white'
-          }}
-        >
-          {isCapturing ? 'Stop Screen Capture' : 'Start Screen Capture'}
-        </button>
-        <p className="text-xs mt-2 text-center" style={{ color: 'var(--color-text-muted)' }}>
-          Capture screen content to generate adaptive music
-        </p>
-      </div>
       
       {/* Footer */}
       <div className="mt-auto pt-8">

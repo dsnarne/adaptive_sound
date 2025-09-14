@@ -17,6 +17,7 @@ interface LiveScreenOCRProps {
 }
 
 export default function LiveScreenOCR({ onMusicUpdate, onCaptureStateChange, shouldStart }: LiveScreenOCRProps) {
+  console.log('LiveScreenOCR component mounted with shouldStart:', shouldStart)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const workerRef = useRef<TesseractWorker | null>(null)
@@ -84,6 +85,7 @@ export default function LiveScreenOCR({ onMusicUpdate, onCaptureStateChange, sho
       await initWorker(language)
       setStatus('Requesting screen capture...')
       console.log('Requesting display media...')
+      
       const stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: false })
       console.log('Stream obtained:', stream)
       streamRef.current = stream
@@ -381,6 +383,7 @@ export default function LiveScreenOCR({ onMusicUpdate, onCaptureStateChange, sho
 
   // Handle external start/stop control
   useEffect(() => {
+    console.log('shouldStart changed to:', shouldStart, 'running:', running)
     if (shouldStart && !running) {
       console.log('Starting capture from external trigger')
       void start()
@@ -388,7 +391,7 @@ export default function LiveScreenOCR({ onMusicUpdate, onCaptureStateChange, sho
       console.log('Stopping capture from external trigger')
       void stop()
     }
-  }, [shouldStart])
+  }, [shouldStart, running, start, stop])
 
   useEffect(() => {
     return () => { void stop() }
