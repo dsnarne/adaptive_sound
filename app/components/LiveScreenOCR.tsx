@@ -73,6 +73,7 @@ export default function LiveScreenOCR({
     audioUrl?: string;
     error?: string;
   }>({ status: "idle" });
+  const [forceGenerationText, setForceGenerationText] = useState<string | null>(null);
 
   // Recent Plays state management
   const [recentPlays, setRecentPlays] = useState<
@@ -96,33 +97,26 @@ export default function LiveScreenOCR({
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
-      audioRef.current.src = ''; // Clear source to fully stop
+      audioRef.current.src = '';
     }
-    
+
     // Enable live mode
     setLiveModeEnabled(true);
-    
-    // If there's a current live song ready, play it immediately
-    if (musicGeneration.audioUrl && musicGeneration.status === "ready") {
-      setTimeout(() => {
-        if (audioRef.current && musicGeneration.audioUrl) {
-          audioRef.current.src = musicGeneration.audioUrl;
-          audioRef.current.load();
-          audioRef.current.play().catch((e) => {
-            console.log("Auto-play failed:", e);
-          });
-        }
-      }, 200);
-    } else {
-      // If no ready song, force a new generation cycle with current text
-      if (recognizedText && recognizedText !== "(waiting)" && recognizedText.length > 50) {
-        // Reset the freeze window to allow immediate generation
-        lastCommitTsRef.current = 0;
-        // The OCR loop will naturally pick this up and generate new music
-        console.log("Live mode resumed - will generate new music from current content");
+
+    // Use existing recognized text to kick off a fresh generation once
+    const text = recognizedText;
+    if (text && text !== '(waiting)' && text.length > 50) {
+      // Cancel any pending deferred commit and allow immediate generation
+      if (commitTimerRef.current) {
+        clearTimeout(commitTimerRef.current);
+        commitTimerRef.current = null;
       }
+      lastCommitTsRef.current = 0;
+
+      // Queue a single generation from current context
+      setForceGenerationText(text);
     }
-  }, [musicGeneration.audioUrl, musicGeneration.status, recognizedText]);
+  }, [recognizedText]);
 
   // Handle switching to previous music mode
   const pauseLiveMode = useCallback(() => {
@@ -593,6 +587,17 @@ export default function LiveScreenOCR({
     [musicGeneration, onMusicUpdate]
   );
 
+  // When resumeLiveMode queued a forced generation, run it once
+  useEffect(() => {
+    if (forceGenerationText) {
+      const text = forceGenerationText;
+      setForceGenerationText(null);
+      // Guard against overlap: if currently generating, skip
+      if (musicGeneration.status === 'generating' || musicGeneration.status === 'analyzing') return;
+      void triggerMusicGeneration(text);
+    }
+  }, [forceGenerationText, musicGeneration.status, triggerMusicGeneration]);
+
   const stop = useCallback(async () => {
     console.log("Stop called, running:", running);
     if (timerRef.current) {
@@ -654,8 +659,9 @@ export default function LiveScreenOCR({
     const el = audioRef.current;
     if (el && musicGeneration.audioUrl && musicGeneration.status === "ready") {
       try {
+        // Set src explicitly to avoid stale <source> state after manual clears
+        el.src = musicGeneration.audioUrl;
         el.load();
-        // Some browsers require a user gesture; Start Capture counts as one.
         void el.play().catch(() => {});
 
         // Record this play to Modal.Dict (with source: "generate")

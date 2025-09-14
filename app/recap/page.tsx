@@ -42,19 +42,27 @@ export default function RecapPage() {
   const [songsListened, setSongsListened] = React.useState<number>(0)
   const [mostFrequentMood, setMostFrequentMood] = React.useState<string>('-')
   const [uniqueMoods, setUniqueMoods] = React.useState<number>(0)
+  const computedRef = React.useRef(false)
 
   React.useEffect(() => {
+    if (computedRef.current) return
     try {
       // Prefer snapshot captured at stop time to avoid races
       const snapshotRaw = sessionStorage.getItem('adaptive_sound_recap_snapshot')
-      let sessionPlays: Array<{ started_at: string; tags: string; source?: string; clip_id?: string; session_id?: string }> = []
+      let sessionPlays: Array<{ started_at: string; tags: string; source?: string; clip_id?: string; session_id?: string; url?: string }> = []
       let sessionStartAt = ''
+      let sessionEndedAt = ''
+      let allSessionPlays: Array<{ started_at: string; tags: string; source?: string; clip_id?: string; session_id?: string; url?: string }> = []
       if (snapshotRaw) {
         const snap = JSON.parse(snapshotRaw)
         const allPlays = Array.isArray(snap?.plays) ? snap.plays : []
         const currentSessionId = snap?.sessionId || null
         sessionStartAt = snap?.sessionStartAt || ''
-        sessionPlays = allPlays.filter((p: any) => p?.session_id === currentSessionId && p?.source === 'generate')
+        const inSession = (p: any) => (currentSessionId ? p?.session_id === currentSessionId : true)
+        allSessionPlays = allPlays.filter(inSession)
+        const candidates = allPlays.filter((p: any) => p?.source === 'generate')
+        sessionPlays = candidates.filter(inSession)
+        sessionEndedAt = snap?.endedAt || ''
       } else {
         // Fallback to live localStorage if no snapshot
         const playsRaw = localStorage.getItem('adaptive_sound_plays') || '[]'
@@ -67,17 +75,32 @@ export default function RecapPage() {
         }> = JSON.parse(playsRaw)
         const currentSessionId = localStorage.getItem('adaptive_sound_current_session_id')
         sessionStartAt = localStorage.getItem('adaptive_sound_current_session_started_at') || ''
-        sessionPlays = allPlays.filter(p => p.session_id === currentSessionId && p.source === 'generate')
+        const inSession = (p: any) => (currentSessionId ? p?.session_id === currentSessionId : true)
+        allSessionPlays = allPlays.filter(inSession)
+        const candidates = allPlays.filter(p => p.source === 'generate')
+        sessionPlays = candidates.filter(inSession)
       }
       
-      // Count unique songs by clip_id
-      const uniqueClipIds = new Set(sessionPlays.map(p => p.clip_id).filter(Boolean))
-      setSongsListened(uniqueClipIds.size)
+      // Count unique songs by robust identifiers: clip_id -> url -> fallback composite
+      const playsForStats = sessionPlays.length > 0 ? sessionPlays : allSessionPlays
+      const uniqueSongKeys = new Set<string>()
+      for (const p of playsForStats) {
+        const clip = (p.clip_id || '').toString().trim().toLowerCase()
+        const url = (p.url || '').toString().trim()
+        const validClipId = clip && clip !== 'unknown' && clip !== 'null' && clip !== 'undefined'
+        const key = validClipId
+          ? clip
+          : url
+          ? url
+          : `${p.started_at}|${p.tags}`
+        uniqueSongKeys.add(key)
+      }
+      setSongsListened(uniqueSongKeys.size)
 
       // Compute unique tags across current session and most-listened genre (by first tag)
       const moodCounts: Record<string, number> = {}
       const uniqueTagSet = new Set<string>()
-      for (const p of sessionPlays) {
+      for (const p of playsForStats) {
         const tokens = (p.tags || '')
           .split(',')
           .map(t => t.trim())
@@ -98,15 +121,20 @@ export default function RecapPage() {
       }
 
       // Compute elapsed from session start to now (or last play)
-      if (sessionStartAt && sessionPlays.length > 0) {
-        const sessionStart = new Date(sessionStartAt).getTime()
-        const lastPlay = Math.max(...sessionPlays.map(p => new Date(p.started_at).getTime()))
-        const ms = Math.max(0, lastPlay - sessionStart)
+      if (playsForStats.length > 0 || sessionStartAt) {
+        const startTs = sessionStartAt
+          ? new Date(sessionStartAt).getTime()
+          : Math.min(...playsForStats.map(p => new Date(p.started_at).getTime()))
+        const lastPlayTs = playsForStats.length > 0
+          ? Math.max(...playsForStats.map(p => new Date(p.started_at).getTime()))
+          : startTs
+        const endTs = sessionEndedAt
+          ? new Date(sessionEndedAt).getTime()
+          : lastPlayTs
+        const ms = Math.max(0, endTs - startTs)
         const mm = Math.floor(ms / 60000)
         const ss = Math.floor((ms % 60000) / 1000)
         setElapsed(`${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`)
-      } else {
-        setElapsed('00:00')
       }
 
       // After computing, clear snapshot and any leftover session data for a clean slate
@@ -117,6 +145,9 @@ export default function RecapPage() {
         localStorage.removeItem('adaptive_sound_current_session_started_at')
         localStorage.removeItem('adaptive_sound_user_id')
       } catch {}
+
+      // Mark as computed to avoid React StrictMode double-invoke clobbering values
+      computedRef.current = true
     } catch {
       // ignore
     }
